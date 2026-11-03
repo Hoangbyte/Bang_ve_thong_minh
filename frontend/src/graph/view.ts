@@ -3,8 +3,8 @@ import { findIntersections, findSpecialPoints } from './analysis'
 /** Khung nhìn: tâm (thế giới), số pixel trên một đơn vị. Tỉ lệ x:y luôn 1:1. */
 export interface View { cx: number; cy: number; ppu: number }
 
-export const PLOT_W = 308
-export const PLOT_H = 240
+export const PLOT_W = 340
+export const PLOT_H = 270
 export const clampPpu = (p: number) => Math.max(2, Math.min(2000, p))
 
 export function zoomAt(v: View, px: number, py: number, factor: number, w = PLOT_W, h = PLOT_H): View {

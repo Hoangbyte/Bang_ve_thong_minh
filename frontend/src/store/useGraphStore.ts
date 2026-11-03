@@ -4,6 +4,20 @@ import type { View } from '../graph/view'
 
 export const MAX_EXPRS = 6
 
+export interface GraphDisplayOptions {
+  xIntercepts: boolean
+  yIntercepts: boolean
+  extrema: boolean
+  intersections: boolean
+}
+
+export const DEFAULT_GRAPH_DISPLAY: GraphDisplayOptions = {
+  xIntercepts: false,
+  yIntercepts: false,
+  extrema: false,
+  intersections: false,
+}
+
 interface GraphState {
   /** Mỗi dòng là một phương trình hoặc bất phương trình; tối đa MAX_EXPRS dòng. */
   exprs: string[]
@@ -11,6 +25,7 @@ interface GraphState {
   params: Record<string, number>
   /** Khung nhìn hiện tại (không lưu: mỗi lần mở lại sẽ tự chọn vừa khung). */
   view: View | null
+  display: GraphDisplayOptions
   /** Bộ biểu thức đã được chọn khung nhìn vừa khung, để không đặt lại khi chuyển tab. */
   fitFor: string | null
   setExpr: (i: number, e: string) => void
@@ -19,6 +34,7 @@ interface GraphState {
   removeExpr: (i: number) => void
   setParam: (name: string, value: number) => void
   setView: (v: View) => void
+  setDisplay: (key: keyof GraphDisplayOptions, value: boolean) => void
   markFit: (key: string) => void
 }
 
@@ -28,6 +44,7 @@ export const useGraphStore = create<GraphState>()(
       exprs: ['y = x^2 - 4x + 3'],
       params: {},
       view: null,
+      display: DEFAULT_GRAPH_DISPLAY,
       fitFor: null,
       setExpr: (i, e) => set((s) => ({ exprs: s.exprs.map((x, k) => (k === i ? e : x)) })),
       setExprs: (exprs) => set({ exprs }),
@@ -35,8 +52,9 @@ export const useGraphStore = create<GraphState>()(
       removeExpr: (i) => set((s) => (s.exprs.length > 1 ? { exprs: s.exprs.filter((_, k) => k !== i) } : s)),
       setParam: (name, value) => set((s) => ({ params: { ...s.params, [name]: value } })),
       setView: (view) => set({ view }),
+      setDisplay: (key, value) => set((s) => ({ display: { ...s.display, [key]: value } })),
       markFit: (fitFor) => set({ fitFor }),
     }),
-    { name: 'btm-graph', partialize: (s) => ({ exprs: s.exprs, params: s.params }) }
+    { name: 'btm-graph', partialize: (s) => ({ exprs: s.exprs, params: s.params, display: s.display }) }
   )
 )

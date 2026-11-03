@@ -1,4 +1,7 @@
-import { AssetRecordType, createShapeId, type Editor, type TLAsset, type TLImageShape } from 'tldraw'
+import { AssetRecordType, createShapeId, type Editor, type TLAsset, type TLImageShape, type TLShapeId } from 'tldraw'
+import { cardPalette } from './render'
+import { graphDataToProps, type GraphShape, type GraphShapeData } from './GraphShape'
+import { PLOT_H, PLOT_W } from './view'
 
 /** Thả một ảnh (data URL) vào giữa vùng đang nhìn của bảng. Ảnh là tĩnh: muốn đổi thì thả lại bản mới. */
 export function dropImageToBoard(editor: Editor, src: string, mimeType: string, w: number, h: number, name: string, meta?: Record<string, any>) {
@@ -18,24 +21,60 @@ export function dropImageToBoard(editor: Editor, src: string, mimeType: string, 
   return id
 }
 
-/** meta lưu công thức và tham số vào hình, để chọn hình rồi "Sửa đồ thị đang chọn". */
-export function dropGraphToBoard(editor: Editor, svg: string, w: number, h: number, meta?: Record<string, any>) {
-  return dropImageToBoard(editor, `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`, 'image/svg+xml', w, h, 'do-thi.svg', meta)
+/** Đưa dữ liệu toán học lên bảng như một shape có thể chỉnh sửa và lưu cùng tài liệu. */
+export function dropGraphToBoard(editor: Editor, data: GraphShapeData) {
+  const vp = editor.getViewportPageBounds()
+  const w = Math.min(400, vp.w * 0.6)
+  const h = (w * PLOT_H) / PLOT_W
+  const id = createShapeId()
+  editor.createShape<GraphShape>({
+    id,
+    type: 'graph',
+    x: vp.center.x - w / 2,
+    y: vp.center.y - h / 2,
+    props: { w, h, ...graphDataToProps(data) },
+  })
+  editor.select(id)
+  return id
 }
 
-/** Thay ảnh đồ thị của hình đang chọn tại chỗ (giữ vị trí và chiều rộng), cập nhật luôn công thức đã lưu. */
-export function updateGraphOnBoard(editor: Editor, id: TLImageShape['id'], svg: string, w: number, h: number, meta: Record<string, any>) {
-  const shape = editor.getShape(id) as TLImageShape | undefined
-  if (!shape || shape.type !== 'image') return false
-  const assetId = AssetRecordType.createId()
+/** Cập nhật dữ liệu của graph đang chọn; đồ thị ảnh cũ được nâng cấp tại chỗ thành shape. */
+export function updateGraphOnBoard(editor: Editor, id: TLShapeId, data: GraphShapeData) {
+  const shape = editor.getShape(id)
+  if (!shape) return false
+  if (shape.type === 'graph') {
+    editor.updateShape<GraphShape>({ id, type: 'graph', props: graphDataToProps(data) })
+    return true
+  }
+  if (shape.type !== 'image') return false
+
+  const image = shape as TLImageShape
+  const idNew = createShapeId()
+  const graphMeta = image.meta.graph
+  const legacyMeta = graphMeta && typeof graphMeta === 'object' ? { graph: graphMeta } : {}
   editor.run(() => {
-    editor.createAssets([
-      { id: assetId, typeName: 'asset', type: 'image', meta: {}, props: { name: 'do-thi.svg', src: `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`, w, h, mimeType: 'image/svg+xml', isAnimated: false } } as TLAsset,
-    ])
-    editor.updateShape<TLImageShape>({ id, type: 'image', props: { assetId, h: (shape.props.w * h) / w }, meta })
-    const old = shape.props.assetId
-    const stillUsed = editor.store.allRecords().some((r) => r.typeName === 'shape' && (r as TLImageShape).type === 'image' && r.id !== id && (r as TLImageShape).props.assetId === old)
-    if (old && !stillUsed) editor.deleteAssets([old])
+    editor.createShape<GraphShape>({
+      id: idNew,
+      type: 'graph',
+      x: image.x,
+      y: image.y,
+      rotation: image.rotation,
+      props: { w: image.props.w, h: image.props.h, ...graphDataToProps({
+        ...data,
+        colors: data.colors.length ? data.colors : cardPalette.curves,
+      }) },
+      meta: legacyMeta,
+    })
+    editor.deleteShape(id)
+    const assetId = image.props.assetId
+    const stillUsed = editor.store.allRecords().some(
+      (record) => {
+        if (record.typeName !== 'shape' || record.id === id || record.type !== 'image') return false
+        return (record as TLImageShape).props.assetId === assetId
+      }
+    )
+    if (assetId && !stillUsed) editor.deleteAssets([assetId])
   })
+  editor.select(idNew)
   return true
 }

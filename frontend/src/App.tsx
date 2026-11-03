@@ -12,6 +12,7 @@ import { TopControls } from './components/TopControls'
 import { ZoomControls } from './components/ZoomControls'
 import { RightPanel } from './components/RightPanel'
 import { PagesMenu } from './components/PagesMenu'
+import { GraphShapeUtil } from './graph/GraphShape'
 
 // Tắt toàn bộ giao diện mặc định của tldraw để dùng giao diện riêng; vẫn giữ phím tắt và menu chuột phải.
 const components: TLComponents = {
@@ -48,6 +49,7 @@ export default function App() {
       <Tldraw
         persistenceKey="bang-thong-minh"
         components={components}
+        shapeUtils={[GraphShapeUtil]}
         onMount={(e) => {
           setEditor(e)
           return () => setEditor(null)

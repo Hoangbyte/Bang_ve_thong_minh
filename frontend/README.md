@@ -9,7 +9,7 @@ Thử trên tablet: mở bằng địa chỉ IP máy cùng mạng wifi.
 ## Tính năng
 - **Bảng vẽ:** tldraw, nền lưới (trơn, ô vuông, chấm, Oxy), dark/light, phím tắt, tự lưu cục bộ, nhiều trang, lưu/mở bài giảng bằng file JSON.
 - **Nhận diện hình 2D** (`src/recognition`, chạy tại chỗ): thẳng, tròn, elip, tam giác, chữ nhật, đa giác tối đa 8 cạnh (`TUNING.maxCorners`), nhãn đỉnh, góc vuông, hoàn tác. Nét được làm mượt trước khi đo độ thẳng (`TUNING.lineSmooth`). Ngưỡng tự nắn `MIN_SNAP_CONFIDENCE` = 0,6. Hình nhiều cạnh hơn được giữ nguyên nét hoặc nắn thành hình tròn.
-- **Đồ thị** (`src/graph`): y = f(x), x = c, phương trình hai vế, bất phương trình (y > f(x), x ≥ c, A > B theo x), hệ tối đa 6 dòng, tham số có thanh trượt, điểm đặc biệt, giao điểm, nghiệm dạng √ và phân số (nghiệm đúng cho bậc 2 hệ số hữu tỉ). Nhận LaTeX (`\frac`, `\dfrac`, `\sqrt[n]{}`, `\mathrm{e}`, `\operatorname{}`...), `|x|`.
+- **Đồ thị** (`src/graph`): y = f(x), x = c, phương trình hai vế, bất phương trình (y > f(x), x ≥ c, A > B theo x), hệ tối đa 6 dòng, tham số có thanh trượt, điểm đặc biệt bật/tắt riêng, giao điểm, nghiệm dạng √ và phân số (nghiệm đúng cho bậc 2 hệ số hữu tỉ). Nhận LaTeX (`\frac`, `\dfrac`, `\sqrt[n]{}`, `\mathrm{e}`, `\operatorname{}`...), `|x|`. Đồ thị thả lên bảng là custom shape lưu phương trình, tham số, màu và khung nhìn; có thể chọn, di chuyển, đổi cỡ, cuộn để zoom, Alt+kéo để dịch hệ trục, sửa/cập nhật và xuất cùng nội dung đồ thị.
 - **Ô MathLive** (nạp khi mở tab Đồ thị), nút "Đọc chữ viết tay" rồi cho sửa; thả đồ thị lên bảng kèm công thức, chọn hình để "Sửa" hoặc "Cập nhật tại chỗ".
 - **3D** (`src/solid`): hộp, cầu, trụ, nón, chóp; xoay/zoom, nét khuất là nét đứt, thể tích, diện tích.
 - **Chat**, **xuất** PNG/SVG (trang hiện tại) và PDF (tất cả trang).

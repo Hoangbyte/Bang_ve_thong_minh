@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import katex from 'katex'
 import 'katex/dist/katex.min.css'
 import { ImagePlus, Maximize, Plus, X, ZoomIn, ZoomOut } from 'lucide-react'
-import { MAX_EXPRS, useGraphStore } from '../store/useGraphStore'
+import { DEFAULT_GRAPH_DISPLAY, MAX_EXPRS, useGraphStore } from '../store/useGraphStore'
 import { useEditorStore, useEditorValue } from '../store/useEditorStore'
 // Nạp MathLive khi mở tab Đồ thị (tách gói riêng)
 const FormulaEditor = lazy(() => import('./FormulaEditor').then((m) => ({ default: m.FormulaEditor })))
@@ -12,6 +12,8 @@ import { findIntersections, findSpecialPoints, type SpecialPoint } from '../grap
 import { PLOT_H, PLOT_W, fitView, zoomAt, type View } from '../graph/view'
 import { cardPalette, livePalette, renderGraphSvg, type Curve } from '../graph/render'
 import { dropGraphToBoard, updateGraphOnBoard } from '../graph/dropToBoard'
+import { graphDataFromShape, type GraphShape, type GraphShapeData } from '../graph/GraphShape'
+import type { TLShapeId } from 'tldraw'
 import { niceNumber, quadraticExact } from '../graph/nice'
 import { fmt } from '../graph/format'
 import { IconButton } from './ui'
@@ -28,7 +30,31 @@ const EXAMPLES: { id: string; rows: string[] }[] = [
 const GROUPS = ['yint', 'xint', 'max', 'min'] as const
 const DEFAULT_VIEW: View = { cx: 0, cy: 0, ppu: 30 }
 type Pt = { x: number; y: number }
-type GraphMeta = { exprs: string[]; params: Record<string, number> }
+type GraphSelection = { id: TLShapeId; data: GraphShapeData }
+
+function readLegacyGraph(id: TLShapeId, metadata: unknown): GraphSelection | null {
+  if (!metadata || typeof metadata !== 'object') return null
+  const graph = (metadata as Record<string, unknown>).graph
+  if (!graph || typeof graph !== 'object') return null
+  const meta = graph as Record<string, unknown>
+  if (!Array.isArray(meta.exprs) || !meta.exprs.every((expr) => typeof expr === 'string')) return null
+  const params: Record<string, number> = {}
+  if (meta.params && typeof meta.params === 'object' && !Array.isArray(meta.params)) {
+    for (const [name, value] of Object.entries(meta.params)) {
+      if (typeof value === 'number' && Number.isFinite(value)) params[name] = value
+    }
+  }
+  return {
+    id,
+    data: {
+      exprs: meta.exprs,
+      params,
+      view: DEFAULT_VIEW,
+      display: DEFAULT_GRAPH_DISPLAY,
+      colors: cardPalette.curves,
+    },
+  }
+}
 
 /**
  * Tab "Đồ thị": nhập một hoặc nhiều phương trình/bất phương trình, xem công thức (KaTeX),
@@ -36,13 +62,31 @@ type GraphMeta = { exprs: string[]; params: Record<string, number> }
  */
 export function GraphPanel() {
   const { t } = useTranslation()
-  const { exprs, params, view, fitFor, setExpr, setExprs, addExpr, removeExpr, setParam, setView, markFit } = useGraphStore()
+  const {
+    exprs, params, view, display, fitFor, setExpr, setExprs, addExpr, removeExpr,
+    setParam, setView, setDisplay, markFit,
+  } = useGraphStore()
   const editor = useEditorStore((s) => s.editor)
   const plotRef = useRef<HTMLDivElement>(null)
   const [dropped, setDropped] = useState(false)
-  // Hình đồ thị đang chọn trên bảng (nếu có) lưu sẵn công thức trong meta
-  const sel = useEditorValue<GraphMeta | null>('graphSel', (e) => { const g = e.getOnlySelectedShape()?.meta?.graph; return g && typeof g === 'object' ? (g as unknown as GraphMeta) : null }, null)
-  const loadSel = () => { if (!sel) return; setExprs(sel.exprs); Object.entries(sel.params).forEach(([n, x]) => setParam(n, x)) }
+  const sel = useEditorValue<GraphSelection | null>('graphSel', (e) => {
+    const shape = e.getOnlySelectedShape()
+    if (!shape) return null
+    if (shape.type === 'graph') {
+      const graph = graphDataFromShape(shape as GraphShape)
+      return { id: shape.id, data: graph }
+    }
+    if (shape.type === 'image') return readLegacyGraph(shape.id, shape.meta)
+    return null
+  }, null)
+  const loadSel = () => {
+    if (!sel) return
+    setExprs(sel.data.exprs)
+    Object.entries(sel.data.params).forEach(([name, value]) => setParam(name, value))
+    ;(Object.keys(DEFAULT_GRAPH_DISPLAY) as (keyof typeof DEFAULT_GRAPH_DISPLAY)[]).forEach((key) => setDisplay(key, sel.data.display[key]))
+    setView(sel.data.view)
+    markFit(sel.data.exprs.join('\n'))
+  }
   const drawLatex = (latex: string) => {
     const i = exprs.findIndex((e) => !e.trim())
     if (i >= 0) return setExpr(i, latex) // còn dòng trống thì dùng
@@ -73,9 +117,12 @@ export function GraphPanel() {
   const x0 = v.cx - PLOT_W / 2 / v.ppu
   const x1 = v.cx + PLOT_W / 2 / v.ppu
   const { rows, inter } = useMemo(() => {
-    const rows: SpecialPoint[][] = evs.map((e) => (e && e.vertical === null ? findSpecialPoints(e.f, x0, x1) : []))
+    const showCurvePoints = display.xIntercepts || display.yIntercepts || display.extrema
+    const rows: SpecialPoint[][] = showCurvePoints
+      ? evs.map((e) => (e && e.vertical === null ? findSpecialPoints(e.f, x0, x1) : []))
+      : evs.map(() => [])
     const inter: Pt[] = []
-    for (let i = 0; i < evs.length; i++) for (let j = i + 1; j < evs.length; j++) {
+    if (display.intersections) for (let i = 0; i < evs.length; i++) for (let j = i + 1; j < evs.length; j++) {
       const a = evs[i], b = evs[j]
       if (!a || !b || a.xset || b.xset) continue
       if (a.vertical === null && b.vertical === null) inter.push(...findIntersections(a.f, b.f, x0, x1))
@@ -83,13 +130,22 @@ export function GraphPanel() {
       else if (a.vertical === null && b.vertical !== null) inter.push({ x: b.vertical, y: a.f(b.vertical) })
     }
     return { rows, inter: inter.filter((p) => Number.isFinite(p.y)) }
-  }, [evs, x0, x1])
+  }, [evs, x0, x1, display])
 
   const curves: Curve[] = useMemo(
     () => evs.flatMap((e, ci) => (e ? [{ f: e.f, vertical: e.vertical, rel: e.rel, xset: e.xset, ci }] : [])),
     [evs]
   )
-  const points: Pt[] = useMemo(() => [...inter, ...rows.flat()], [inter, rows])
+  const shownRows = useMemo(
+    () => rows.map((row) => row.filter((p) => (
+      (p.kind === 'xint' && display.xIntercepts) ||
+      (p.kind === 'yint' && display.yIntercepts) ||
+      ((p.kind === 'max' || p.kind === 'min') && display.extrema)
+    ))),
+    [rows, display]
+  )
+  const shownInter = display.intersections ? inter : []
+  const points: Pt[] = useMemo(() => [...shownInter, ...shownRows.flat()], [shownInter, shownRows])
 
   const svg = useMemo(
     () => renderGraphSvg({ w: PLOT_W, h: PLOT_H, view: v, curves, points, palette: livePalette, responsive: true }),
@@ -145,30 +201,31 @@ export function GraphPanel() {
     return () => clearTimeout(timer)
   }, [dropped])
 
-  const snapshot = () => {
-    const k = 2 // ảnh gấp đôi để nét
-    const W = PLOT_W * k, H = PLOT_H * k
-    const eqs = exprs.map((e) => e.trim()).filter(Boolean).join(';  ')
-    const caption = paramNames.length ? `${eqs}   (${paramNames.map((n) => `${n} = ${fmt(values[n])}`).join(', ')})` : eqs
-    const svg = renderGraphSvg({ w: W, h: H, view: { ...v, ppu: v.ppu * k }, curves, points, palette: cardPalette, scale: k, caption })
-    return { svg, W, H, meta: { graph: { exprs: exprs.filter((e) => e.trim()), params: values } } }
-  }
+  const graphData = (): GraphShapeData => ({
+    exprs: exprs.map((expr) => expr.trim()).filter(Boolean),
+    params: values,
+    view: v,
+    display,
+    colors: cardPalette.curves,
+  })
   const drop = () => {
     if (!editor || curves.length === 0) return
-    const { svg, W, H, meta } = snapshot()
-    dropGraphToBoard(editor, svg, W, H, meta)
+    dropGraphToBoard(editor, graphData())
     setMsgKey('dropped')
     setDropped(true)
   }
   const updateSel = () => {
-    const id = editor?.getOnlySelectedShape()?.id
-    if (!editor || !id || curves.length === 0) return
-    const { svg, W, H, meta } = snapshot()
-    if (updateGraphOnBoard(editor, id as never, svg, W, H, meta)) { setMsgKey('updated'); setDropped(true) }
+    if (!editor || !sel || curves.length === 0) return
+    if (updateGraphOnBoard(editor, sel.id, graphData())) { setMsgKey('updated'); setDropped(true) }
   }
 
   const multi = exprs.length > 1
   const hasPoints = points.length > 0
+  const toggleDisplay = (key: keyof typeof DEFAULT_GRAPH_DISPLAY) => {
+    const next = { ...display, [key]: !display[key] }
+    setDisplay(key, next[key])
+    if (editor && sel) updateGraphOnBoard(editor, sel.id, { ...sel.data, display: next })
+  }
   // Nghiệm đúng của các đường bậc 2 (vd 1 ± √2) thay cho số thập phân
   const exact = curves.flatMap((c) => (c.vertical === null ? quadraticExact(c.f) : []))
   const pt = (p: Pt) => `(${niceNumber(p.x, exact)}; ${niceNumber(p.y)})`
@@ -287,15 +344,37 @@ export function GraphPanel() {
       {curves.length > 0 && (
         <section aria-labelledby="g-special">
           <h2 id="g-special" className="mb-1 text-sm font-semibold text-ink">{t('graph.special')}</h2>
+          <div className="mb-3 grid grid-cols-2 gap-1">
+            {([
+              ['xIntercepts', t('graph.options.xIntercepts')],
+              ['yIntercepts', t('graph.options.yIntercepts')],
+              ['extrema', t('graph.options.extrema')],
+              ['intersections', t('graph.options.intersections')],
+            ] as const).map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                role="switch"
+                aria-checked={display[key]}
+                onClick={() => toggleDisplay(key)}
+                className="flex min-h-10 items-center justify-between gap-2 rounded-lg px-2 text-left text-xs text-ink transition-colors hover:bg-hover motion-reduce:transition-none"
+              >
+                {label}
+                <span className={`relative h-5 w-9 shrink-0 rounded-full transition-colors motion-reduce:transition-none ${display[key] ? 'bg-accent' : 'bg-line'}`} aria-hidden="true">
+                  <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-surface shadow transition-all motion-reduce:transition-none ${display[key] ? 'left-[1.125rem]' : 'left-0.5'}`} />
+                </span>
+              </button>
+            ))}
+          </div>
           {hasPoints ? (
             <dl className="space-y-2 text-sm">
-              {inter.length > 0 && (
+              {shownInter.length > 0 && (
                 <div className="flex gap-2">
                   <dt className="w-20 shrink-0 text-muted">{t('graph.inter')}</dt>
-                  <dd className="font-mono tabular-nums text-ink">{inter.map((p) => pt(p)).join('  ')}</dd>
+                  <dd className="font-mono tabular-nums text-ink">{shownInter.map((p) => pt(p)).join('  ')}</dd>
                 </div>
               )}
-              {rows.map((pts, i) => {
+              {shownRows.map((pts, i) => {
                 const groups = GROUPS.map((k) => [k, pts.filter((p) => p.kind === k)] as const).filter(([, g]) => g.length)
                 if (!groups.length) return null
                 return (
@@ -317,7 +396,9 @@ export function GraphPanel() {
               })}
             </dl>
           ) : (
-            <p className="text-xs text-muted">{t('graph.noSpecial')}</p>
+            <p className="text-xs text-muted">
+              {Object.values(display).some(Boolean) ? t('graph.noSpecial') : t('graph.hiddenSpecial')}
+            </p>
           )}
         </section>
       )}

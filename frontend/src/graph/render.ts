@@ -32,12 +32,14 @@ export interface RenderOptions {
   /** Điểm cần chấm và ghi toạ độ (điểm đặc biệt, giao điểm). */
   points: { x: number; y: number }[]
   palette: Palette
-  /** 1 = xem trước; 2 = ảnh thả lên bảng (mọi kích thước nhân đôi). */
+  /** Tỉ lệ nét và nhãn khi kết xuất SVG ở độ phân giải cao. */
   scale?: number
   /** Dòng chú thích góc dưới trái (sẽ được escape). */
   caption?: string
   /** true: SVG co giãn theo khung chứa (xem trước). */
   responsive?: boolean
+  /** SVG lấp đầy cả chiều rộng lẫn chiều cao (đối tượng đồ thị trên bảng). */
+  stretch?: boolean
 }
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
@@ -167,7 +169,9 @@ export function renderGraphSvg(o: RenderOptions): string {
   }
   if (o.caption) dots.push(`<text x="${10 * s}" y="${h - 10 * s}" font-size="${12 * s}" fill="${P.text}">${esc(o.caption)}</text>`)
 
-  const size = o.responsive ? 'style="width:100%;height:auto;display:block"' : `width="${w}" height="${h}"`
+  const size = o.stretch
+    ? 'style="width:100%;height:100%;display:block"'
+    : o.responsive ? 'style="width:100%;height:auto;display:block"' : `width="${w}" height="${h}"`
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" ${size} font-family="'Be Vietnam Pro', system-ui, sans-serif">` +
     `<defs><clipPath id="gclip"><rect width="${w}" height="${h}" rx="${10 * s}"/></clipPath></defs>` +
