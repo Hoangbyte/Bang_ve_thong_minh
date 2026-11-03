@@ -8,6 +8,7 @@ const vi = {
     select: 'Chọn', hand: 'Kéo bảng', draw: 'Bút', highlight: 'Bút dạ quang',
     eraser: 'Tẩy', geo: 'Hình', arrow: 'Mũi tên', text: 'Chữ',
     undo: 'Hoàn tác', redo: 'Làm lại',
+    pointLine: 'Vẽ điểm và nối cạnh',
   },
   grid: { label: 'Lưới', none: 'Không', square: 'Ô vuông', dots: 'Chấm', oxy: 'Oxy' },
   top: {
@@ -139,6 +140,9 @@ const vi = {
     size: 'Độ dày nét',
     colors: { black: 'Đen', blue: 'Xanh dương', red: 'Đỏ', green: 'Xanh lá', orange: 'Cam', violet: 'Tím', yellow: 'Vàng' },
     sizes: { s: 'Mảnh', m: 'Vừa', l: 'Dày', xl: 'Rất dày' },
+    lineStyle: 'Kiểu nét cạnh',
+    lineStyles: { solid: 'Liền', dashed: 'Đứt', dotted: 'Chấm' },
+    deleteEdge: 'Xóa cạnh đang chọn',
   },
 }
 

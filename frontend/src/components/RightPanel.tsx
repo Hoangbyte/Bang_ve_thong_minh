@@ -1,7 +1,9 @@
 import { useTranslation } from 'react-i18next'
-import { DefaultColorStyle, DefaultSizeStyle } from 'tldraw'
+import { DefaultColorStyle, DefaultDashStyle, DefaultSizeStyle } from 'tldraw'
+import { Trash2 } from 'lucide-react'
 import { useUiStore, type PanelTab } from '../store/useUiStore'
 import { useEditorStore, useEditorValue } from '../store/useEditorStore'
+import { getGeometryEdge } from '../geometry/PointLineTool'
 import { ChatPanel } from './ChatPanel'
 import { ErrorBoundary } from './ErrorBoundary'
 import { GraphPanel } from './GraphPanel'
@@ -77,6 +79,19 @@ function StyleControls() {
     },
     undefined
   )
+  const dash = useEditorValue<string | undefined>(
+    'styleDash',
+    (e) => {
+      const style = e.getSharedStyles().get(DefaultDashStyle)
+      return style?.type === 'shared' ? style.value : undefined
+    },
+    undefined
+  )
+  const selectedEdges = useEditorValue(
+    'selectedGeometryEdges',
+    (e) => e.getSelectedShapes().filter((shape) => !!getGeometryEdge(shape)),
+    []
+  )
 
   return (
     <div className="space-y-6">
@@ -129,6 +144,37 @@ function StyleControls() {
           ))}
         </div>
       </section>
+
+      {selectedEdges.length > 0 && (
+        <>
+          <section aria-labelledby="lbl-dash">
+            <h2 id="lbl-dash" className="mb-2 text-sm font-semibold text-ink">{t('panel.lineStyle')}</h2>
+            <div className="grid grid-cols-3 gap-2">
+              {(['solid', 'dashed', 'dotted'] as const).map((style) => (
+                <button
+                  key={style}
+                  type="button"
+                  aria-pressed={dash === style}
+                  onClick={() => editor?.setStyleForSelectedShapes(DefaultDashStyle, style)}
+                  className={`h-11 rounded-xl text-sm font-medium transition-colors motion-reduce:transition-none ${
+                    dash === style ? 'bg-accent text-on-accent' : 'border border-line text-ink hover:bg-hover'
+                  }`}
+                >
+                  {t(`panel.lineStyles.${style}`)}
+                </button>
+              ))}
+            </div>
+          </section>
+          <button
+            type="button"
+            onClick={() => editor?.deleteShapes(selectedEdges.map((shape) => shape.id))}
+            className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-line text-sm font-medium text-ink transition-colors hover:bg-hover motion-reduce:transition-none"
+          >
+            <Trash2 size={17} aria-hidden="true" />
+            {t('panel.deleteEdge')}
+          </button>
+        </>
+      )}
     </div>
   )
 }

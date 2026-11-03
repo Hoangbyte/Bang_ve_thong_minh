@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { Eraser, Hand, Highlighter, MousePointer2, MoveUpRight, Pencil, Redo2, Square, Type, Undo2 } from 'lucide-react'
+import { Eraser, Hand, Highlighter, MousePointer2, MoveUpRight, Pencil, Redo2, Share2, Square, Type, Undo2 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useEditorStore, useEditorValue } from '../store/useEditorStore'
 import { Divider, IconButton, barClass } from './ui'
@@ -14,6 +14,7 @@ const GROUPS: { id: string; icon: LucideIcon; key: string }[][] = [
   ],
   [
     { id: 'geo', icon: Square, key: 'R' },
+    { id: 'pointLine', icon: Share2, key: 'Esc' },
     { id: 'arrow', icon: MoveUpRight, key: 'A' },
     { id: 'text', icon: Type, key: 'T' },
   ],
@@ -37,8 +38,8 @@ export function Toolbar() {
               icon={icon}
               label={t(`tools.${id}`)}
               hint={key}
-              active={tool === id}
-              onClick={() => editor?.setCurrentTool(id)}
+              active={id === 'pointLine' ? tool === 'point-line' : tool === id}
+              onClick={() => editor?.setCurrentTool(id === 'pointLine' ? 'point-line' : id)}
             />
           ))}
           <Divider />
