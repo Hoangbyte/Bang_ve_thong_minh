@@ -196,6 +196,7 @@ export class PointLineTool extends StateNode {
   override onCancel() {
     this.clearPreview()
     this.resetGesture()
+    this.editor.updateInstanceState({ isToolLocked: false })
     this.editor.setCurrentTool('select')
   }
 

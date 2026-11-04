@@ -9,6 +9,13 @@ const vi = {
     eraser: 'Tẩy', geo: 'Hình', arrow: 'Mũi tên', text: 'Chữ',
     undo: 'Hoàn tác', redo: 'Làm lại',
     pointLine: 'Vẽ điểm và nối cạnh',
+    geometryMenu: 'Thêm công cụ hình học',
+    lineMenu: 'Chọn kiểu đường',
+    vector: 'Vector có mũi tên',
+    straightLine: 'Đường thẳng nét liền',
+    dashedLine: 'Đường thẳng nét đứt',
+    circle: 'Hình tròn',
+    ellipse: 'Hình elip',
   },
   grid: { label: 'Lưới', none: 'Không', square: 'Ô vuông', dots: 'Chấm', oxy: 'Oxy' },
   top: {

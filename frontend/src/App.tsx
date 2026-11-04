@@ -6,6 +6,7 @@ import { useEditorStore } from './store/useEditorStore'
 import { useShortcuts } from './hooks/useShortcuts'
 import { useAutoBeautify } from './hooks/useAutoBeautify'
 import { useGeometryLinks } from './hooks/useGeometryLinks'
+import { useEditorValue } from './store/useEditorStore'
 import { SnapFeedback } from './components/SnapFeedback'
 import { GridBackground } from './components/GridBackground'
 import { Toolbar } from './components/Toolbar'
@@ -15,6 +16,7 @@ import { RightPanel } from './components/RightPanel'
 import { PagesMenu } from './components/PagesMenu'
 import { GraphShapeUtil } from './graph/GraphShape'
 import { PointLineTool } from './geometry/PointLineTool'
+import { ShapeDrawTool } from './geometry/ShapeDrawTool'
 
 // Tắt toàn bộ giao diện mặc định của tldraw để dùng giao diện riêng; vẫn giữ phím tắt và menu chuột phải.
 const components: TLComponents = {
@@ -31,9 +33,16 @@ export default function App() {
   const grid = useUiStore((s) => s.grid)
   const editor = useEditorStore((s) => s.editor)
   const setEditor = useEditorStore((s) => s.setEditor)
+  const toolId = useEditorValue('drawingToolLock', (e) => e.getCurrentToolId(), 'select')
   useShortcuts()
   useAutoBeautify()
   useGeometryLinks()
+
+  useEffect(() => {
+    editor?.updateInstanceState({
+      isToolLocked: ['geo', 'arrow', 'geometry-draw', 'point-line'].includes(toolId),
+    })
+  }, [editor, toolId])
 
   // Đồng bộ sáng/tối cho cả giao diện riêng lẫn tldraw
   useEffect(() => {
@@ -53,7 +62,7 @@ export default function App() {
         persistenceKey="bang-thong-minh"
         components={components}
         shapeUtils={[GraphShapeUtil]}
-        tools={[PointLineTool]}
+        tools={[PointLineTool, ShapeDrawTool]}
         onMount={(e) => {
           setEditor(e)
           return () => setEditor(null)

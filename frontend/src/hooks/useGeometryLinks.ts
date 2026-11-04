@@ -13,6 +13,19 @@ export function useGeometryLinks() {
     const stopMove = editor.sideEffects.registerAfterChangeHandler('shape', (prev, next) => {
       if (prev.type !== 'geo' || next.type !== 'geo') return
       const vertex = next as TLGeoShape
+      if (vertex.meta.geometryCircle === true && vertex.props.w !== vertex.props.h) {
+        const diameter = Math.max(vertex.props.w, vertex.props.h)
+        const centerX = vertex.x + vertex.props.w / 2
+        const centerY = vertex.y + vertex.props.h / 2
+        editor.updateShape<TLGeoShape>({
+          id: vertex.id,
+          type: 'geo',
+          x: centerX - diameter / 2,
+          y: centerY - diameter / 2,
+          props: { w: diameter, h: diameter },
+        })
+        return
+      }
       if (!isGeometryVertex(vertex) || isGeometryPreview(vertex)) return
       const center = geometryVertexCenter(vertex)
       for (const shape of editor.getCurrentPageShapes()) {
